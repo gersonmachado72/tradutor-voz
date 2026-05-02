@@ -2,18 +2,27 @@ FROM python:3.10-slim
 
 WORKDIR /app
 
-# Instala o av via sistema e demais dependências
+# Instala FFmpeg e headers de desenvolvimento (necessários para pkg-config)
 RUN apt-get update && apt-get install -y --no-install-recommends \
     build-essential \
     pkg-config \
     ffmpeg \
-    python3-av \
+    libavformat-dev \
+    libavcodec-dev \
+    libavutil-dev \
+    libswscale-dev \
+    libavdevice-dev \
+    libavfilter-dev \
+    libswresample-dev \
     && rm -rf /var/lib/apt/lists/*
 
-# Atualiza pip
+# Atualiza pip e ferramentas de build
 RUN pip install --no-cache-dir --upgrade pip setuptools wheel
 
-# Copia e instala os requisitos (sem av)
+# Instala o av usando apenas wheel (evita compilação)
+RUN pip install --no-cache-dir --only-binary=av av==10.0.0
+
+# Copia e instala os demais requisitos (o av já está instalado, pip não vai recompilar)
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
