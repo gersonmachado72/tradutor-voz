@@ -17,7 +17,7 @@ def too_large(e):
 
 # Carrega modelo Whisper (base é bom e leve)
 print("[INFO] Carregando modelo Whisper 'base'...")
-whisper_model = WhisperModel("base", device="cpu", compute_type="int8")
+whisper_model = WhisperModel("tiny", device="cpu", compute_type="int8")
 print("[INFO] Modelo Whisper pronto.")
 
 translators = {}
