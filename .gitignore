@@ -1,0 +1,27 @@
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.so
+
+# Modelos baixados (grandes)
+models/
+*.zip
+
+# Arquivos temporários
+*.tmp
+*.wav
+*.mp3
+*.webm
+
+# Ambiente virtual
+env/
+venv/
+.venv/
+
+# VS Code
+.vscode/
+
+# Arquivos locais do WSL
+.coverage
+.tox/
