@@ -5,8 +5,8 @@ import subprocess
 from flask import Flask, request, render_template, jsonify
 import numpy as np
 from scipy.io import wavfile
-import argostranslate.translate
 from vosk import Model, KaldiRecognizer
+from deep_translator import GoogleTranslator
 
 app = Flask(__name__)
 app.config['MAX_CONTENT_LENGTH'] = 100 * 1024 * 1024
@@ -26,8 +26,6 @@ VOSK_MODELS = {
 MODELS_DIR = 'models'
 os.makedirs(MODELS_DIR, exist_ok=True)
 
-translators = {}
-
 def download_vosk_model(lang_code):
     model_name = VOSK_MODELS.get(lang_code)
     if not model_name:
@@ -46,15 +44,13 @@ def download_vosk_model(lang_code):
     os.remove(zip_path)
     return model_path
 
-def get_translator(from_code, to_code):
-    key = f"{from_code}_{to_code}"
-    if key in translators:
-        return translators[key]
-    translator = argostranslate.translate.get_translation_from_codes(from_code, to_code)
-    if translator is None:
-        raise Exception(f"Pacote de tradução {from_code}->{to_code} não encontrado.")
-    translators[key] = translator
-    return translator
+def translate_text(text, from_lang, to_lang):
+    """Traduz texto usando Google Tradutor online."""
+    try:
+        translator = GoogleTranslator(source=from_lang, target=to_lang)
+        return translator.translate(text)
+    except Exception as e:
+        raise Exception(f"Erro na tradução: {e}")
 
 def convert_to_wav(input_path):
     output_path = tempfile.NamedTemporaryFile(suffix='.wav', delete=False).name
@@ -83,12 +79,9 @@ def transcribe_audio(file_path, lang_code):
         model = Model(model_path)
         rec = KaldiRecognizer(model, 16000)
         rec.SetWords(True)
-        # Lê o arquivo WAV com scipy
         sr, audio = wavfile.read(wav_path)
         if sr != 16000:
-            # Não deveria acontecer, pois ffmpeg já resampleou
             print(f"[WARN] Taxa de amostragem inesperada: {sr}")
-        # Converte para int16 e envia em chunks (Vosk espera int16)
         audio_int16 = audio.astype(np.int16).tobytes()
         if rec.AcceptWaveform(audio_int16):
             result = json.loads(rec.Result())
@@ -134,8 +127,7 @@ def translate_audio():
         if not recognized_text or len(recognized_text) < 2:
             return jsonify({'error': 'Nenhuma fala reconhecida. Tente falar mais próximo ao microfone.'}), 400
 
-        translator = get_translator(src_lang, tgt_lang)
-        translated_text = translator.translate(recognized_text)
+        translated_text = translate_text(recognized_text, src_lang, tgt_lang)
         return jsonify({
             'original': recognized_text,
             'translated': translated_text,
