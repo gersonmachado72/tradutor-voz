@@ -9,8 +9,6 @@
         #recordBtn { background-color: #e74c3c; color: white; border: none; border-radius: 5px; }
         #stopBtn { background-color: #95a5a6; color: white; border: none; border-radius: 5px; }
         .translations { margin-top: 30px; border-top: 1px solid #ccc; padding-top: 20px; }
-        .original { background-color: #f9f9f9; padding: 10px; border-left: 5px solid #3498db; margin: 10px 0; }
-        .translated { background-color: #f9f9f9; padding: 10px; border-left: 5px solid #2ecc71; margin: 10px 0; }
         select, input[type="file"] { margin: 10px 0; padding: 5px; width: 200px; }
         #loading { color: blue; margin: 10px 0; }
     </style>
@@ -18,19 +16,16 @@
 <body>
     <h1>🎤 Tradutor de Voz Multilíngue</h1>
     <p>Grave sua voz ou envie um arquivo de áudio</p>
-    
     <div>
         <button id="recordBtn">🎙️ Gravar</button>
         <button id="stopBtn" disabled>⏹️ Parar</button>
         <span id="timer">0:00</span>
         <p><small>A gravação será enviada automaticamente após a parada.</small></p>
     </div>
-    
     <div>
         <p>📁 Ou envie um arquivo de áudio (WAV, MP3, etc.)</p>
         <input type="file" id="audioFile" accept="audio/*">
     </div>
-    
     <div>
         <label>🎤 Idioma de origem (fala):</label>
         <select id="srcLang">
@@ -41,7 +36,6 @@
             <option value="de">Alemão</option>
         </select>
     </div>
-    
     <div>
         <label>🌐 Traduzir para:</label>
         <select id="tgtLang">
@@ -52,37 +46,29 @@
             <option value="de">Alemão</option>
         </select>
     </div>
-    
     <div>
         <button id="translateBtn">🚀 Traduzir Áudio</button>
     </div>
-    
     <div id="loading" style="display:none;">Processando áudio... aguarde.</div>
-    
     <div class="translations" id="resultArea">
         <h3>Tradução:</h3>
         <div id="original"></div>
         <div id="translated"></div>
         <div id="error" style="color:red;"></div>
     </div>
-
     <script>
-        let mediaRecorder;
-        let audioChunks = [];
-        let timerInterval;
-        let seconds = 0;
-        
+        let mediaRecorder, audioChunks = [], timerInterval, seconds = 0;
         const recordBtn = document.getElementById('recordBtn');
         const stopBtn = document.getElementById('stopBtn');
         const timerSpan = document.getElementById('timer');
         const audioFileInput = document.getElementById('audioFile');
         const translateBtn = document.getElementById('translateBtn');
-        
+
         recordBtn.onclick = async () => {
             const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
             mediaRecorder = new MediaRecorder(stream);
             audioChunks = [];
-            mediaRecorder.ondataavailable = event => audioChunks.push(event.data);
+            mediaRecorder.ondataavailable = e => audioChunks.push(e.data);
             mediaRecorder.onstop = () => {
                 const audioBlob = new Blob(audioChunks, { type: 'audio/webm' });
                 sendAudio(audioBlob);
@@ -95,28 +81,21 @@
             updateTimer();
             timerInterval = setInterval(() => { seconds++; updateTimer(); }, 1000);
         };
-        
         stopBtn.onclick = () => {
             mediaRecorder.stop();
             recordBtn.disabled = false;
             stopBtn.disabled = true;
             clearInterval(timerInterval);
         };
-        
         function updateTimer() {
             const mins = Math.floor(seconds / 60);
             const secs = seconds % 60;
             timerSpan.textContent = `${mins}:${secs.toString().padStart(2,'0')}`;
         }
-        
         translateBtn.onclick = () => {
-            if (audioFileInput.files.length > 0) {
-                sendAudio(audioFileInput.files[0]);
-            } else {
-                alert("Por favor, grave um áudio ou selecione um arquivo.");
-            }
+            if (audioFileInput.files.length > 0) sendAudio(audioFileInput.files[0]);
+            else alert("Grave ou selecione um arquivo.");
         };
-        
         async function sendAudio(audioBlob) {
             const srcLang = document.getElementById('srcLang').value;
             const tgtLang = document.getElementById('tgtLang').value;
@@ -124,12 +103,10 @@
             formData.append('audio', audioBlob, 'audio.webm');
             formData.append('src_lang', srcLang);
             formData.append('tgt_lang', tgtLang);
-            
             document.getElementById('loading').style.display = 'block';
             document.getElementById('error').innerText = '';
             document.getElementById('original').innerHTML = '';
             document.getElementById('translated').innerHTML = '';
-            
             try {
                 const response = await fetch('/translate', { method: 'POST', body: formData });
                 const data = await response.json();
