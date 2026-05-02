@@ -2,10 +2,11 @@ FROM python:3.10-slim
 
 WORKDIR /app
 
-# Instala dependências do sistema: ffmpeg + bibliotecas de desenvolvimento (necessárias para PyAV)
+# Instala compiladores, FFmpeg e bibliotecas de desenvolvimento
 RUN apt-get update && apt-get install -y \
-    ffmpeg \
+    build-essential \
     pkg-config \
+    ffmpeg \
     libavcodec-dev \
     libavformat-dev \
     libavutil-dev \
