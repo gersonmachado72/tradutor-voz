@@ -7,20 +7,19 @@ import speech_recognition as sr
 from googletrans import Translator
 
 app = Flask(__name__)
-app.config['MAX_CONTENT_LENGTH'] = 30 * 1024 * 1024  # 30 MB (limite seguro)
+app.config['MAX_CONTENT_LENGTH'] = 30 * 1024 * 1024  # 30 MB
 
 translator = Translator()
 
 def get_audio_duration(file_path):
-    """Retorna a duração em segundos usando ffprobe."""
     cmd = ['ffprobe', '-v', 'error', '-show_entries', 'format=duration',
            '-of', 'default=noprint_wrappers=1:nokey=1', file_path]
     try:
         result = subprocess.run(cmd, capture_output=True, text=True, timeout=5)
         if result.returncode == 0 and result.stdout.strip():
             return float(result.stdout.strip())
-    except Exception:
-        pass
+    except Exception as e:
+        print(f"Erro ao obter duração: {e}", file=sys.stderr)
     return 0
 
 @app.route('/')
@@ -38,26 +37,28 @@ def translate():
     src_lang = request.form.get('src_lang', 'pt')
     tgt_lang = request.form.get('tgt_lang', 'en')
 
-    # Verifica o tamanho do arquivo (já limitado pelo Flask)
-    # Salva temporariamente
-    with tempfile.NamedTemporaryFile(suffix='.webm', delete=False) as tmp:
-        audio.save(tmp.name)
-        input_file = tmp.name
+    input_file = None
+    wav_file = None
 
     try:
-        # Obtém duração (rápido)
+        # Salva arquivo temporário
+        with tempfile.NamedTemporaryFile(suffix='.webm', delete=False) as tmp:
+            audio.save(tmp.name)
+            input_file = tmp.name
+
+        # Obtém duração
         duration = get_audio_duration(input_file)
         print(f"Duração: {duration}s", file=sys.stderr)
-        
+
+        # Validação de duração
         if duration <= 0:
-            # Não conseguiu ler duração, mas prossegue (pode ser formato estranho)
-            pass
-        elif duration > 180:  # Máximo 3 minutos (seguro para 512 MB RAM)
-            return jsonify({'error': f'Áudio muito longo: {duration:.1f}s. Limite máximo é 180s (3 minutos).'}), 400
+            pass  # prossegue, pode ser formato não suportado
+        elif duration > 120:  # limite de 2 minutos (seguro para plano gratuito)
+            return jsonify({'error': f'Áudio muito longo: {duration:.1f}s. Limite máximo é 120s (2 minutos).'}), 400
         elif duration < 0.8:
             return jsonify({'error': f'Áudio muito curto ({duration:.2f}s). Grave pelo menos 1 segundo.'}), 400
 
-        # Converte para WAV com timeout de 45 segundos
+        # Converte para WAV
         wav_file = input_file + ".wav"
         cmd = ['ffmpeg', '-i', input_file, '-ar', '16000', '-ac', '1', '-y',
                '-loglevel', 'error', wav_file]
@@ -68,10 +69,9 @@ def translate():
         except subprocess.CalledProcessError as e:
             return jsonify({'error': f'Erro na conversão: {e.stderr[:200]}'}), 400
 
-        # Reconhecimento de fala (Google Speech) – consome pouca memória
+        # Reconhecimento de fala
         recognizer = sr.Recognizer()
         with sr.AudioFile(wav_file) as source:
-            # Só ajusta ruído se o áudio for longo o suficiente
             if duration > 2:
                 recognizer.adjust_for_ambient_noise(source, duration=0.5)
             audio_data = recognizer.record(source)
@@ -83,9 +83,8 @@ def translate():
         if not recognized_text:
             return jsonify({'error': 'Fala não reconhecida'}), 400
 
-        # Tradução (Google Translate)
+        # Tradução
         translated_text = translator.translate(recognized_text, src=src_lang, dest=tgt_lang).text
-
         return jsonify({'original': recognized_text, 'translated': translated_text})
 
     except sr.UnknownValueError:
@@ -96,13 +95,13 @@ def translate():
         print(f"Exceção: {e}", file=sys.stderr)
         return jsonify({'error': f'Erro interno: {str(e)}'}), 500
     finally:
-        # Limpeza dos arquivos temporários
+        # Limpeza segura
         for f in [input_file, wav_file]:
-            if os.path.exists(f):
+            if f and os.path.exists(f):
                 try:
                     os.unlink(f)
-                except:
-                    pass
+                except Exception as e:
+                    print(f"Erro ao remover {f}: {e}", file=sys.stderr)
 
 if __name__ == '__main__':
     import waitress
