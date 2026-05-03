@@ -24,7 +24,7 @@
         <button id="recordBtn">🎙️ Gravar</button>
         <button id="stopBtn" disabled>⏹️ Parar</button>
         <span id="timer">0:00</span>
-        <p><small>A gravação será enviada automaticamente após a parada.</small></p>
+        <p><small>A gravação será enviada automaticamente após a parada (mínimo 2 segundos).</small></p>
     </div>
     
     <div>
@@ -82,16 +82,18 @@
         recordBtn.onclick = async () => {
             try {
                 const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-                mediaRecorder = new MediaRecorder(stream);
+                // Tenta usar codec mais compatível
+                const mimeType = MediaRecorder.isTypeSupported('audio/webm') ? 'audio/webm' : 'audio/mp4';
+                mediaRecorder = new MediaRecorder(stream, { mimeType });
                 audioChunks = [];
                 mediaRecorder.ondataavailable = event => audioChunks.push(event.data);
                 mediaRecorder.onstop = () => {
-                    if (seconds < 1) {
-                        document.getElementById('error').innerText = 'Áudio muito curto. Grave pelo menos 1 segundo.';
+                    if (seconds < 2) {
+                        document.getElementById('error').innerText = 'Áudio muito curto. Grave pelo menos 2 segundos.';
                         if (stream) stream.getTracks().forEach(track => track.stop());
                         return;
                     }
-                    const audioBlob = new Blob(audioChunks, { type: 'audio/webm' });
+                    const audioBlob = new Blob(audioChunks, { type: mimeType });
                     sendAudio(audioBlob);
                     stream.getTracks().forEach(track => track.stop());
                 };
@@ -144,12 +146,12 @@
             
             try {
                 const response = await fetch('/translate', { method: 'POST', body: formData });
-                const text = await response.text(); // tenta obter texto primeiro
+                const text = await response.text();
                 let data;
                 try {
                     data = JSON.parse(text);
                 } catch (e) {
-                    throw new Error(`Resposta não é JSON: ${text.substring(0, 200)}`);
+                    throw new Error(`Resposta inválida: ${text.substring(0, 200)}`);
                 }
                 if (response.ok) {
                     document.getElementById('original').innerHTML = `<strong>Original:</strong> ${data.original}`;
