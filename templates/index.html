@@ -11,11 +11,12 @@
         .translations { margin-top: 30px; border-top: 1px solid #ccc; padding-top: 20px; }
         select, input[type="file"] { margin: 10px 0; padding: 5px; width: 200px; }
         #loading { color: blue; margin: 10px 0; }
+        .warning { color: orange; font-size: 0.9em; }
     </style>
 </head>
 <body>
     <h1>🎤 Tradutor de Voz Multilíngue</h1>
-    <p>Grave sua voz ou envie um arquivo de áudio</p>
+    <p>Grave sua voz ou envie um arquivo de áudio (máx 30 MB, até 3 minutos)</p>
     <div>
         <button id="recordBtn">🎙️ Gravar</button>
         <button id="stopBtn" disabled>⏹️ Parar</button>
@@ -25,6 +26,7 @@
     <div>
         <p>📁 Ou envie um arquivo de áudio (WAV, MP3, etc.)</p>
         <input type="file" id="audioFile" accept="audio/*">
+        <p class="warning">⚠️ Arquivos longos (>3 min) podem exceder o limite de memória do servidor gratuito.</p>
     </div>
     <div>
         <label>🎤 Idioma de origem (fala):</label>
@@ -71,6 +73,10 @@
             mediaRecorder.ondataavailable = e => audioChunks.push(e.data);
             mediaRecorder.onstop = () => {
                 const audioBlob = new Blob(audioChunks, { type: 'audio/webm' });
+                if (audioBlob.size > 30 * 1024 * 1024) {
+                    alert("Gravação muito longa. Tente uma mais curta (máx 30 MB).");
+                    return;
+                }
                 sendAudio(audioBlob);
                 stream.getTracks().forEach(track => track.stop());
             };
@@ -93,8 +99,16 @@
             timerSpan.textContent = `${mins}:${secs.toString().padStart(2,'0')}`;
         }
         translateBtn.onclick = () => {
-            if (audioFileInput.files.length > 0) sendAudio(audioFileInput.files[0]);
-            else alert("Grave ou selecione um arquivo.");
+            if (audioFileInput.files.length > 0) {
+                const file = audioFileInput.files[0];
+                if (file.size > 30 * 1024 * 1024) {
+                    alert("Arquivo muito grande (máx 30 MB)");
+                    return;
+                }
+                sendAudio(file);
+            } else {
+                alert("Grave ou selecione um arquivo.");
+            }
         };
         async function sendAudio(audioBlob) {
             const srcLang = document.getElementById('srcLang').value;
@@ -109,6 +123,10 @@
             document.getElementById('translated').innerHTML = '';
             try {
                 const response = await fetch('/translate', { method: 'POST', body: formData });
+                if (!response.ok) {
+                    const text = await response.text();
+                    throw new Error(`Servidor respondeu com ${response.status}: ${text.substring(0,100)}`);
+                }
                 const data = await response.json();
                 if (response.ok) {
                     document.getElementById('original').innerHTML = `<strong>Original:</strong> ${data.original}`;
