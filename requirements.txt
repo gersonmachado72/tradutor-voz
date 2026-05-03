@@ -1,4 +1,4 @@
 Flask==2.3.3
-argostranslate==1.10.0
 speechrecognition==3.10.0
+googletrans==4.0.0rc1
 waitress==2.1.2
