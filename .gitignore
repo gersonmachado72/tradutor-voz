@@ -1,25 +1,6 @@
-# Python
+models/
+*.zip
 __pycache__/
 *.pyc
-*.pyo
-*.so
-
-# Arquivos temporários
-*.tmp
-*.wav
-*.mp3
-*.webm
-
-# Ambiente virtual
-env/
-venv/
-.venv/
-
-# VS Code
-.vscode/
-
-# Arquivos locais do WSL
-.coverage
-.tox/
-
-# Removemos a linha 'models' daqui
+.env
+chave.json
