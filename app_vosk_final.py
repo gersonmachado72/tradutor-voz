@@ -15,37 +15,23 @@ app.config['MAX_CONTENT_LENGTH'] = 100 * 1024 * 1024
 def too_large(e):
     return jsonify({'error': 'Arquivo muito grande. Máximo 100 MB.'}), 413
 
-# Dicionário com modelos Vosk grandes (melhor qualidade)
-VOSK_MODELS = {
-    'en': 'vosk-model-en-us-0.22',
-    'pt': 'vosk-model-pt-0.22',
-    'es': 'vosk-model-small-es-0.42',
-    'fr': 'vosk-model-small-fr-0.22',
-    'de': 'vosk-model-small-de-0.15',
-}
+# Usar modelos small (já baixados localmente)
 MODELS_DIR = 'models'
-os.makedirs(MODELS_DIR, exist_ok=True)
+# Mapeamento direto para os diretórios dos modelos
+VOSK_MODELS_PATHS = {
+    'en': os.path.join(MODELS_DIR, 'vosk-model-small-en-us-0.15'),
+    'pt': os.path.join(MODELS_DIR, 'vosk-model-small-pt-0.3'),
+    'es': os.path.join(MODELS_DIR, 'vosk-model-small-es-0.42'),
+    'fr': os.path.join(MODELS_DIR, 'vosk-model-small-fr-0.22'),
+    'de': os.path.join(MODELS_DIR, 'vosk-model-small-de-0.15'),
+}
 
-def download_vosk_model(lang_code):
-    model_name = VOSK_MODELS.get(lang_code)
-    if not model_name:
-        return None
-    model_path = os.path.join(MODELS_DIR, model_name)
-    if os.path.exists(model_path):
-        return model_path
-    url = f"https://alphacephei.com/vosk/models/{model_name}.zip"
-    zip_path = os.path.join(MODELS_DIR, f"{model_name}.zip")
-    print(f"Baixando modelo {model_name} (pode demorar)...")
-    import urllib.request
-    import zipfile
-    urllib.request.urlretrieve(url, zip_path)
-    with zipfile.ZipFile(zip_path, 'r') as zip_ref:
-        zip_ref.extractall(MODELS_DIR)
-    os.remove(zip_path)
-    return model_path
+# Garante que os diretórios existem
+for path in VOSK_MODELS_PATHS.values():
+    if path and not os.path.exists(path):
+        raise Exception(f"Modelo Vosk não encontrado: {path}")
 
 def translate_text(text, from_lang, to_lang):
-    """Traduz texto usando Google Tradutor online."""
     try:
         translator = GoogleTranslator(source=from_lang, target=to_lang)
         return translator.translate(text)
@@ -75,7 +61,9 @@ def transcribe_audio(file_path, lang_code):
         if duration < 0.3:
             return ""
         print(f"[INFO] Transcrevendo {duration:.2f}s com Vosk...")
-        model_path = download_vosk_model(lang_code)
+        model_path = VOSK_MODELS_PATHS.get(lang_code)
+        if not model_path or not os.path.exists(model_path):
+            raise Exception(f"Modelo para idioma {lang_code} não encontrado")
         model = Model(model_path)
         rec = KaldiRecognizer(model, 16000)
         rec.SetWords(True)
