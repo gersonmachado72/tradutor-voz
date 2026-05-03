@@ -4,10 +4,6 @@ __pycache__/
 *.pyo
 *.so
 
-# Modelos baixados (grandes)
-models/
-*.zip
-
 # Arquivos temporários
 *.tmp
 *.wav
@@ -25,3 +21,5 @@ venv/
 # Arquivos locais do WSL
 .coverage
 .tox/
+
+# Removemos a linha 'models' daqui
